@@ -1,0 +1,10 @@
+[
+    {
+        "description":  "selected mailbox",
+        "translateDescription":  false,
+        "inputFieldType":  1,
+        "key":  "SelectedMailbox",
+        "type":  0,
+        "options":  1
+    }
+]

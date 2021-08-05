@@ -1,0 +1,10 @@
+[
+    {
+        "description":  "Search  filter",
+        "translateDescription":  false,
+        "inputFieldType":  1,
+        "key":  "SearchMailbox",
+        "type":  0,
+        "options":  1
+    }
+]
