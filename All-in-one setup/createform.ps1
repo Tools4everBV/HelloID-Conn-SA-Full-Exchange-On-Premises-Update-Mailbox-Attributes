@@ -6,8 +6,8 @@
 $portalUrl = "https://CUSTOMER.helloid.com"
 $apiKey = "API_KEY"
 $apiSecret = "API_SECRET"
-$delegatedFormAccessGroupNames = @("HID_administrators") #Only unique names are supported. Groups must exist!
-$delegatedFormCategories = @("Active Directory","User Management") #Only unique names are supported. Categories will be created if not exists
+$delegatedFormAccessGroupNames = @("Users") #Only unique names are supported. Groups must exist!
+$delegatedFormCategories = @("Exchange Administration","Exchange On-Premise","Exchange Online") #Only unique names are supported. Categories will be created if not exists
 $script:debugLogging = $false #Default value: $false. If $true, the HelloID resource GUIDs will be shown in the logging
 $script:duplicateForm = $false #Default value: $false. If $true, the HelloID resource names will be changed to import a duplicate Form
 $script:duplicateFormSuffix = "_tmp" #the suffix will be added to all HelloID resource names to generate a duplicate form with different resource names
@@ -16,14 +16,23 @@ $script:duplicateFormSuffix = "_tmp" #the suffix will be added to all HelloID re
 #NOTE: You can also update the HelloID Global variable values afterwards in the HelloID Admin Portal: https://<CUSTOMER>.helloid.com/admin/variablelibrary
 $globalHelloIDVariables = [System.Collections.Generic.List[object]]@();
 
-#Global variable #1 >> ExchangeAdminUsername
+#Global variable #1 >> exchangeAdminPassword
 $tmpName = @'
-ExchangeAdminUsername
+exchangeAdminPassword
 '@ 
 $tmpValue = "" 
 $globalHelloIDVariables.Add([PSCustomObject]@{name = $tmpName; value = $tmpValue; secret = "True"});
 
-#Global variable #2 >> ExchangeAuthentication
+#Global variable #2 >> exchangeAdminUsername
+$tmpName = @'
+exchangeAdminUsername
+'@ 
+$tmpValue = @'
+TestAdmin@freque.nl
+'@ 
+$globalHelloIDVariables.Add([PSCustomObject]@{name = $tmpName; value = $tmpValue; secret = "False"});
+
+#Global variable #3 >> ExchangeAuthentication
 $tmpName = @'
 ExchangeAuthentication
 '@ 
@@ -32,20 +41,11 @@ kerberos
 '@ 
 $globalHelloIDVariables.Add([PSCustomObject]@{name = $tmpName; value = $tmpValue; secret = "False"});
 
-#Global variable #3 >> ExchangeAdminPassword
-$tmpName = @'
-ExchangeAdminPassword
-'@ 
-$tmpValue = "" 
-$globalHelloIDVariables.Add([PSCustomObject]@{name = $tmpName; value = $tmpValue; secret = "True"});
-
 #Global variable #4 >> ExchangeConnectionUri
 $tmpName = @'
 ExchangeConnectionUri
 '@ 
-$tmpValue = @'
-http://myserver.mydomain.com/PowerShell
-'@ 
+$tmpValue = "" 
 $globalHelloIDVariables.Add([PSCustomObject]@{name = $tmpName; value = $tmpValue; secret = "False"});
 
 #Global variable #5 >> ExchangeUpdateMailboxAttributesSearchOU
@@ -86,7 +86,18 @@ if (-not [string]::IsNullOrEmpty($portalBaseUrl)) {
 
 # Define specific endpoint URI
 $script:PortalBaseUrl = $script:PortalBaseUrl.trim("/") + "/"  
- 
+
+# Make sure to reveive an empty array using PowerShell Core
+function ConvertFrom-Json-WithEmptyArray([string]$jsonString) {
+    # Running in PowerShell Core?
+    if($IsCoreCLR -eq $true){
+        $r = [Object[]]($jsonString | ConvertFrom-Json -NoEnumerate)
+        return ,$r  # Force return value to be an array using a comma
+    } else {
+        $r = [Object[]]($jsonString | ConvertFrom-Json)
+        return ,$r  # Force return value to be an array using a comma
+    }
+}
 
 function Invoke-HelloIDGlobalVariable {
     param(
@@ -153,7 +164,7 @@ function Invoke-HelloIDAutomationTask {
                 powerShellScript    = $PowershellScript;
                 automationContainer = $AutomationContainer;
                 objectGuid          = $ObjectGuid;
-                variables           = [Object[]]($Variables | ConvertFrom-Json);
+                variables           = (ConvertFrom-Json-WithEmptyArray($Variables));
             }
             $body = ConvertTo-Json -InputObject $body
     
@@ -204,11 +215,11 @@ function Invoke-HelloIDDatasource {
             $body = @{
                 name               = $DatasourceName;
                 type               = $DatasourceType;
-                model              = [Object[]]($DatasourceModel | ConvertFrom-Json);
+                model              = (ConvertFrom-Json-WithEmptyArray($DatasourceModel));
                 automationTaskGUID = $AutomationTaskGuid;
-                value              = [Object[]]($DatasourceStaticValue | ConvertFrom-Json);
+                value              = (ConvertFrom-Json-WithEmptyArray($DatasourceStaticValue));
                 script             = $DatasourcePsScript;
-                input              = [Object[]]($DatasourceInput | ConvertFrom-Json);
+                input              = (ConvertFrom-Json-WithEmptyArray($DatasourceInput));
             }
             $body = ConvertTo-Json -InputObject $body
       
@@ -250,7 +261,7 @@ function Invoke-HelloIDDynamicForm {
             #Create Dynamic form
             $body = @{
                 Name       = $FormName;
-                FormSchema = [Object[]]($FormSchema | ConvertFrom-Json)
+                FormSchema = (ConvertFrom-Json-WithEmptyArray($FormSchema));
             }
             $body = ConvertTo-Json -InputObject $body -Depth 100
     
@@ -298,7 +309,7 @@ function Invoke-HelloIDDelegatedForm {
                 name            = $DelegatedFormName;
                 dynamicFormGUID = $DynamicFormGuid;
                 isEnabled       = "True";
-                accessGroups    = [Object[]]($AccessGroups | ConvertFrom-Json);
+                accessGroups    = (ConvertFrom-Json-WithEmptyArray($AccessGroups));
                 useFaIcon       = $UseFaIcon;
                 faIcon          = $FaIcon;
             }    
@@ -673,7 +684,7 @@ catch {
 '@; 
 
 	$tmpVariables = @'
-[{"name":"CustomAttribute3","value":"{{form.textCA3}}","secret":false,"typeConstraint":"string"},{"name":"CustomAttribute4","value":"{{form.textCA4}}","secret":false,"typeConstraint":"string"},{"name":"CustomAttribute1","value":"{{form.textCA1}}","secret":false,"typeConstraint":"string"},{"name":"CustomAttribute5","value":"{{form.textCA5}}","secret":false,"typeConstraint":"string"},{"name":"CustomAttribute6","value":"{{form.textCA6}}","secret":false,"typeConstraint":"string"},{"name":"CustomAttribute7","value":"{{form.textCA7}}","secret":false,"typeConstraint":"string"},{"name":"CustomAttribute2","value":"{{form.textCA2}}","secret":false,"typeConstraint":"string"},{"name":"MailboxIdentity","value":"{{form.gridSelectedMailbox.Identity}}","secret":false,"typeConstraint":"string"}]
+[{"name":"CustomAttribute1","value":"{{form.textCA1}}","secret":false,"typeConstraint":"string"},{"name":"CustomAttribute2","value":"{{form.textCA2}}","secret":false,"typeConstraint":"string"},{"name":"CustomAttribute3","value":"{{form.textCA3}}","secret":false,"typeConstraint":"string"},{"name":"CustomAttribute4","value":"{{form.textCA4}}","secret":false,"typeConstraint":"string"},{"name":"CustomAttribute5","value":"{{form.textCA5}}","secret":false,"typeConstraint":"string"},{"name":"CustomAttribute6","value":"{{form.textCA6}}","secret":false,"typeConstraint":"string"},{"name":"CustomAttribute7","value":"{{form.textCA7}}","secret":false,"typeConstraint":"string"},{"name":"MailboxIdentity","value":"{{form.gridSelectedMailbox.Identity}}","secret":false,"typeConstraint":"string"}]
 '@ 
 
 	$delegatedFormTaskGuid = [PSCustomObject]@{} 

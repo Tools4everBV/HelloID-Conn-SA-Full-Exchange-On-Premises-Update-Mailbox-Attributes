@@ -1,15 +1,19 @@
 [
     {
+        "name":  "CustomAttribute1",
+        "value":  "{{form.textCA1}}"
+    },
+    {
+        "name":  "CustomAttribute2",
+        "value":  "{{form.textCA2}}"
+    },
+    {
         "name":  "CustomAttribute3",
         "value":  "{{form.textCA3}}"
     },
     {
         "name":  "CustomAttribute4",
         "value":  "{{form.textCA4}}"
-    },
-    {
-        "name":  "CustomAttribute1",
-        "value":  "{{form.textCA1}}"
     },
     {
         "name":  "CustomAttribute5",
@@ -22,10 +26,6 @@
     {
         "name":  "CustomAttribute7",
         "value":  "{{form.textCA7}}"
-    },
-    {
-        "name":  "CustomAttribute2",
-        "value":  "{{form.textCA2}}"
     },
     {
         "name":  "MailboxIdentity",

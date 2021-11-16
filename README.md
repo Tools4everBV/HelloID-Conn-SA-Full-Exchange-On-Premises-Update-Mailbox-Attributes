@@ -1,5 +1,3 @@
-# HelloID-Conn-SA-Full-Exchange-On-premises-Update-Mailbox-Attributes
-
 <!-- Description -->
 ## Description
 This HelloID Service Automation Delegated Form provides the functionality to change exchange attributes. implemented are the displayname and the first 7 custom attrbutes.
@@ -8,6 +6,12 @@ This HelloID Service Automation Delegated Form provides the functionality to cha
  2. The result will show you a list of mailboxes. You will need select to correct one.
  3. The current values of the displayname and custom attributes are collected, and can be edited. 
  4. On submit, the modified values wil be updated in exchange.
+
+## Versioning
+| Version | Description | Date |
+| - | - | - |
+| 1.0.1   | Added version number and updated all-in-one script | 2021/11/16  |
+| 1.0.0   | Initial release | 2021/04/29  |
 
 <!-- TABLE OF CONTENTS -->
 ## Table of Contents
@@ -53,5 +57,8 @@ This Powershell data source runs a query to search for the mailbox.
 ### Delegated form task '[task]_Exchange-On-Premises-Update-Mailbox-Attributes'
 This Powershell data source runs a query to collect the values of the relevant current attributes for the mailbox.
 
-# HelloID Docs
+## Getting help
+_If you need help, feel free to ask questions on our [forum](https://forum.helloid.com/forum/helloid-connectors/service-automation/253-helloid-sa-exchange-onpremises-update-mailbox-attributes)_
+
+## HelloID Docs
 The official HelloID documentation can be found at: https://docs.helloid.com/
