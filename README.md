@@ -10,6 +10,7 @@ This HelloID Service Automation Delegated Form provides the functionality to cha
 ## Versioning
 | Version | Description | Date |
 | - | - | - |
+| 1.0.2   | Added version number and updated code for SA-agent and auditlogging | 2022/08/24  |
 | 1.0.1   | Added version number and updated all-in-one script | 2021/11/16  |
 | 1.0.0   | Initial release | 2021/04/29  |
 
@@ -54,7 +55,7 @@ This Powershell data source runs a query to search for the mailbox.
 ### Powershell data source '[powershell-datasource]_Exchange-On-Premises-Update-Mailbox-Attributes-Selected-Mailbox'
 This Powershell data source runs a query to search for the mailbox.
 
-### Delegated form task '[task]_Exchange-On-Premises-Update-Mailbox-Attributes'
+### Delegated form task '[task]_Exchange on-premise - Update mailbox attributes'
 This Powershell data source runs a query to collect the values of the relevant current attributes for the mailbox.
 
 ## Getting help

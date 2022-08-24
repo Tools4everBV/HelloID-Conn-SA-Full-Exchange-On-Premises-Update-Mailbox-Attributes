@@ -4,7 +4,7 @@
         "type":  0
     },
     {
-        "key":  "DisplayName",
+        "key":  "SamAccountName",
         "type":  0
     },
     {
@@ -12,7 +12,7 @@
         "type":  0
     },
     {
-        "key":  "UserPrincipalName",
+        "key":  "DisplayName",
         "type":  0
     },
     {
@@ -20,7 +20,7 @@
         "type":  0
     },
     {
-        "key":  "SamAccountName",
+        "key":  "UserPrincipalName",
         "type":  0
     }
 ]

@@ -44,6 +44,7 @@ try {
     }  
     
     $box = Invoke-Command @invokeCommandParams
+    
     $resultMailboxList = [System.Collections.Generic.List[PSCustomObject]]::New()
     $resultMailbox = @{
         ExchangeGuid      = $box.ExchangeGuid

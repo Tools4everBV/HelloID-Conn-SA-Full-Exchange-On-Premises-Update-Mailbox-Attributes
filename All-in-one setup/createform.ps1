@@ -7,7 +7,7 @@ $portalUrl = "https://CUSTOMER.helloid.com"
 $apiKey = "API_KEY"
 $apiSecret = "API_SECRET"
 $delegatedFormAccessGroupNames = @("Users") #Only unique names are supported. Groups must exist!
-$delegatedFormCategories = @("Exchange Administration","Exchange On-Premise","Exchange Online") #Only unique names are supported. Categories will be created if not exists
+$delegatedFormCategories = @("Exchange Administration","Exchange On-Premise") #Only unique names are supported. Categories will be created if not exists
 $script:debugLogging = $false #Default value: $false. If $true, the HelloID resource GUIDs will be shown in the logging
 $script:duplicateForm = $false #Default value: $false. If $true, the HelloID resource names will be changed to import a duplicate Form
 $script:duplicateFormSuffix = "_tmp" #the suffix will be added to all HelloID resource names to generate a duplicate form with different resource names
@@ -16,23 +16,28 @@ $script:duplicateFormSuffix = "_tmp" #the suffix will be added to all HelloID re
 #NOTE: You can also update the HelloID Global variable values afterwards in the HelloID Admin Portal: https://<CUSTOMER>.helloid.com/admin/variablelibrary
 $globalHelloIDVariables = [System.Collections.Generic.List[object]]@();
 
-#Global variable #1 >> exchangeAdminPassword
+#Global variable #1 >> ExchangeConnectionUri
 $tmpName = @'
-exchangeAdminPassword
+ExchangeConnectionUri
 '@ 
 $tmpValue = "" 
-$globalHelloIDVariables.Add([PSCustomObject]@{name = $tmpName; value = $tmpValue; secret = "True"});
-
-#Global variable #2 >> exchangeAdminUsername
-$tmpName = @'
-exchangeAdminUsername
-'@ 
-$tmpValue = @'
-TestAdmin@freque.nl
-'@ 
 $globalHelloIDVariables.Add([PSCustomObject]@{name = $tmpName; value = $tmpValue; secret = "False"});
 
-#Global variable #3 >> ExchangeAuthentication
+#Global variable #2 >> ExchangeAdminPassword
+$tmpName = @'
+ExchangeAdminPassword
+'@ 
+$tmpValue = ""  
+$globalHelloIDVariables.Add([PSCustomObject]@{name = $tmpName; value = $tmpValue; secret = "False"});
+
+#Global variable #3 >> ExchangeAdminUsername
+$tmpName = @'
+ExchangeAdminUsername
+'@ 
+$tmpValue = ""  
+$globalHelloIDVariables.Add([PSCustomObject]@{name = $tmpName; value = $tmpValue; secret = "False"});
+
+#Global variable #4 >> ExchangeAuthentication
 $tmpName = @'
 ExchangeAuthentication
 '@ 
@@ -41,19 +46,12 @@ kerberos
 '@ 
 $globalHelloIDVariables.Add([PSCustomObject]@{name = $tmpName; value = $tmpValue; secret = "False"});
 
-#Global variable #4 >> ExchangeConnectionUri
+#Global variable #5 >> ExchangeSearchOU
 $tmpName = @'
-ExchangeConnectionUri
-'@ 
-$tmpValue = "" 
-$globalHelloIDVariables.Add([PSCustomObject]@{name = $tmpName; value = $tmpValue; secret = "False"});
-
-#Global variable #5 >> ExchangeUpdateMailboxAttributesSearchOU
-$tmpName = @'
-ExchangeUpdateMailboxAttributesSearchOU
+ExchangeSearchOU
 '@ 
 $tmpValue = @'
-mydomain.com/users
+Enyoi.local/HelloID
 '@ 
 $globalHelloIDVariables.Add([PSCustomObject]@{name = $tmpName; value = $tmpValue; secret = "False"});
 
@@ -120,7 +118,7 @@ function Invoke-HelloIDGlobalVariable {
                 secret   = $Secret;
                 ItemType = 0;
             }    
-            $body = ConvertTo-Json -InputObject $body
+            $body = ConvertTo-Json -InputObject $body -Depth 100
     
             $uri = ($script:PortalBaseUrl + "api/v1/automation/variable")
             $response = Invoke-RestMethod -Method Post -Uri $uri -Headers $script:headers -ContentType "application/json" -Verbose:$false -Body $body
@@ -166,7 +164,7 @@ function Invoke-HelloIDAutomationTask {
                 objectGuid          = $ObjectGuid;
                 variables           = (ConvertFrom-Json-WithEmptyArray($Variables));
             }
-            $body = ConvertTo-Json -InputObject $body
+            $body = ConvertTo-Json -InputObject $body -Depth 100
     
             $uri = ($script:PortalBaseUrl +"api/v1/automationtasks/powershell")
             $response = Invoke-RestMethod -Method Post -Uri $uri -Headers $script:headers -ContentType "application/json" -Verbose:$false -Body $body
@@ -221,7 +219,7 @@ function Invoke-HelloIDDatasource {
                 script             = $DatasourcePsScript;
                 input              = (ConvertFrom-Json-WithEmptyArray($DatasourceInput));
             }
-            $body = ConvertTo-Json -InputObject $body
+            $body = ConvertTo-Json -InputObject $body -Depth 100
       
             $uri = ($script:PortalBaseUrl +"api/v1/datasource")
             $response = Invoke-RestMethod -Method Post -Uri $uri -Headers $script:headers -ContentType "application/json" -Verbose:$false -Body $body
@@ -286,10 +284,11 @@ function Invoke-HelloIDDelegatedForm {
     param(
         [parameter(Mandatory)][String]$DelegatedFormName,
         [parameter(Mandatory)][String]$DynamicFormGuid,
-        [parameter()][String][AllowEmptyString()]$AccessGroups,
+        [parameter()][Array][AllowEmptyString()]$AccessGroups,
         [parameter()][String][AllowEmptyString()]$Categories,
         [parameter(Mandatory)][String]$UseFaIcon,
         [parameter()][String][AllowEmptyString()]$FaIcon,
+        [parameter()][String][AllowEmptyString()]$task,
         [parameter(Mandatory)][Ref]$returnObject
     )
     $delegatedFormCreated = $false
@@ -309,11 +308,16 @@ function Invoke-HelloIDDelegatedForm {
                 name            = $DelegatedFormName;
                 dynamicFormGUID = $DynamicFormGuid;
                 isEnabled       = "True";
-                accessGroups    = (ConvertFrom-Json-WithEmptyArray($AccessGroups));
                 useFaIcon       = $UseFaIcon;
                 faIcon          = $FaIcon;
-            }    
-            $body = ConvertTo-Json -InputObject $body
+                task            = ConvertFrom-Json -inputObject $task;
+            }
+            if(-not[String]::IsNullOrEmpty($AccessGroups)) { 
+                $body += @{
+                    accessGroups    = (ConvertFrom-Json-WithEmptyArray($AccessGroups));
+                }
+            }
+            $body = ConvertTo-Json -InputObject $body -Depth 100
     
             $uri = ($script:PortalBaseUrl +"api/v1/delegatedforms")
             $response = Invoke-RestMethod -Method Post -Uri $uri -Headers $script:headers -ContentType "application/json" -Verbose:$false -Body $body
@@ -338,6 +342,8 @@ function Invoke-HelloIDDelegatedForm {
     $returnObject.value.guid = $delegatedFormGuid
     $returnObject.value.created = $delegatedFormCreated
 }
+
+
 <# Begin: HelloID Global Variables #>
 foreach ($item in $globalHelloIDVariables) {
 	Invoke-HelloIDGlobalVariable -Name $item.name -Value $item.value -Secret $item.secret 
@@ -394,6 +400,7 @@ try {
     }  
     
     $box = Invoke-Command @invokeCommandParams
+    
     $resultMailboxList = [System.Collections.Generic.List[PSCustomObject]]::New()
     $resultMailbox = @{
         ExchangeGuid      = $box.ExchangeGuid
@@ -431,7 +438,7 @@ catch {
 
 '@ 
 $tmpModel = @'
-[{"key":"SamAccountName","type":0},{"key":"CustomAttribute12","type":0},{"key":"ExchangeGuid","type":0},{"key":"CustomAttribute8","type":0},{"key":"UserPrincipalName","type":0},{"key":"CustomAttribute11","type":0},{"key":"CustomAttribute15","type":0},{"key":"CustomAttribute1","type":0},{"key":"CustomAttribute3","type":0},{"key":"CustomAttribute9","type":0},{"key":"CustomAttribute2","type":0},{"key":"CustomAttribute13","type":0},{"key":"CustomAttribute4","type":0},{"key":"DistinguishedName","type":0},{"key":"CustomAttribute14","type":0},{"key":"CustomAttribute10","type":0},{"key":"CustomAttribute5","type":0},{"key":"DisplayName","type":0},{"key":"CustomAttribute6","type":0},{"key":"CustomAttribute7","type":0},{"key":"Identity","type":0},{"key":"IsdefaultSelected","type":0}]
+[{"key":"CustomAttribute4","type":0},{"key":"ExchangeGuid","type":0},{"key":"CustomAttribute7","type":0},{"key":"CustomAttribute10","type":0},{"key":"DistinguishedName","type":0},{"key":"CustomAttribute1","type":0},{"key":"UserPrincipalName","type":0},{"key":"CustomAttribute5","type":0},{"key":"CustomAttribute2","type":0},{"key":"CustomAttribute15","type":0},{"key":"CustomAttribute9","type":0},{"key":"CustomAttribute14","type":0},{"key":"CustomAttribute11","type":0},{"key":"CustomAttribute12","type":0},{"key":"DisplayName","type":0},{"key":"CustomAttribute8","type":0},{"key":"SamAccountName","type":0},{"key":"IsdefaultSelected","type":0},{"key":"CustomAttribute13","type":0},{"key":"CustomAttribute3","type":0},{"key":"Identity","type":0},{"key":"CustomAttribute6","type":0}]
 '@ 
 $tmpInput = @'
 [{"description":"selected mailbox","translateDescription":false,"inputFieldType":1,"key":"SelectedMailbox","type":0,"options":1}]
@@ -445,48 +452,32 @@ Invoke-HelloIDDatasource -DatasourceName $dataSourceGuid_1_Name -DatasourceType 
 
 <# Begin: DataSource "Exchange-On-Premises-Update-Mailbox-Attributes-GetMailbox" #>
 $tmpPsScript = @'
-# used global defined variables in helloid
-# $ExchangeConnectionUri
-# $ExchangeAdminUsername
-# $ExchangeAdminPassword
-# $ExchangeAuthentication
-# $ExchangeUpdateMailboxAttributesSearchOU 
-## connect to exchange and get list of mailboxes
+# Connect to Exchange
+try {
+    $adminSecurePassword = ConvertTo-SecureString -String "$ExchangeAdminPassword" -AsPlainText -Force
+    $adminCredential = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $ExchangeAdminUsername, $adminSecurePassword
+    $sessionOption = New-PSSessionOption -SkipCACheck -SkipCNCheck -SkipRevocationCheck
+    $exchangeSession = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri $exchangeConnectionUri -Credential $adminCredential -SessionOption $sessionOption -ErrorAction Stop 
+    #-AllowRedirection
+    $null = Import-PSSession $exchangeSession -DisableNameChecking -AllowClobber
+    Write-Information "Successfully connected to Exchange using the URI [$exchangeConnectionUri]"         
+}
+catch {
+    Write-Error "Error connecting to Exchange using the URI [$exchangeConnectionUri]. Error: $($_.Exception.Message)"    
+}
 
 try {
-    $adminSecurePassword = ConvertTo-SecureString -String $ExchangeAdminPassword -AsPlainText -Force
-    $adminCredential = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $ExchangeAdminUsername, $adminSecurePassword
-    $searchOUs = $ExchangeUpdateMailboxAttributesSearchOU  
-    $searchValue = ($dataSource.SearchMailbox).trim()
-    $searchQuery = "*$searchValue*"   
-
-
-    $sessionOptionParams = @{
-        SkipCACheck         = $false
-        SkipCNCheck         = $false
-        SkipRevocationCheck = $false
-    }
-
-    $sessionOption = New-PSSessionOption  @SessionOptionParams 
-
-    $sessionParams = @{
-        AllowRedirection  = $true
-        Authentication    = $ExchangeAuthentication 
-        ConfigurationName = 'Microsoft.Exchange' 
-        ConnectionUri     = $ExchangeConnectionUri 
-        Credential        = $adminCredential        
-        SessionOption     = $sessionOption       
-    }
-
-    $exchangeSession = New-PSSession @SessionParams  
-    Write-Information "Successfully connected to Exchange '$ExchangeConnectionUri'"   
+    $searchValue = $dataSource.searchMailbox
+    $searchQuery = "*$searchValue*"
+    $searchOUs = $ExchangeSearchOU
 
     Write-Information "Search query is '$searchQuery'" 
     Write-Information "Search OU is '$searchOUs'" 
+
     $getMailboxParams = @{
         RecipientTypeDetails = @('UserMailbox') 
         OrganizationalUnit   = $searchOUs 
-        Filter               = "Name -like '$searchQuery' -or DisplayName -like '$searchQuery' -or userPrincipalName -like '$searchQuery' -or Alias -like '$searchQuery'"   
+        Filter               = "{Name -like '$searchQuery' -or DisplayName -like '$searchQuery' -or userPrincipalName -like '$searchQuery' -or Alias -like '$searchQuery'}"   
     }
     
     $invokecommandParams = @{
@@ -511,17 +502,24 @@ try {
 
     }
     $resultMailboxList
-    
-    Remove-PSSession($exchangeSession)
   
 }
 catch {
     Write-Error "Error searching for mailboxes using the URI '$exchangeConnectionUri', Message '$($_.Exception.Message)'"
 }
 
+# Disconnect from Exchange
+try {
+    Remove-PsSession -Session $exchangeSession -Confirm:$false -ErrorAction Stop
+    Write-Information "Successfully disconnected from Exchange using the URI [$exchangeConnectionUri]"         
+}
+catch {
+    Write-Error "Error disconnecting from Exchange.  Error: $($_.Exception.Message)"    
+}
+<#----- Exchange On-Premises: End -----#>
 '@ 
 $tmpModel = @'
-[{"key":"Identity","type":0},{"key":"DisplayName","type":0},{"key":"DistinguishedName","type":0},{"key":"UserPrincipalName","type":0},{"key":"ExchangeGuid","type":0},{"key":"SamAccountName","type":0}]
+[{"key":"Identity","type":0},{"key":"SamAccountName","type":0},{"key":"DistinguishedName","type":0},{"key":"DisplayName","type":0},{"key":"ExchangeGuid","type":0},{"key":"UserPrincipalName","type":0}]
 '@ 
 $tmpInput = @'
 [{"description":"Search  filter","translateDescription":false,"inputFieldType":1,"key":"SearchMailbox","type":0,"options":1}]
@@ -534,33 +532,37 @@ Invoke-HelloIDDatasource -DatasourceName $dataSourceGuid_0_Name -DatasourceType 
 <# End: DataSource "Exchange-On-Premises-Update-Mailbox-Attributes-GetMailbox" #>
 <# End: HelloID Data sources #>
 
-<# Begin: Dynamic Form "Exchange-On-Premises-Update-Mailbox-Attributes" #>
+<# Begin: Dynamic Form "Exchange on-premise - Update mailbox attributes" #>
 $tmpSchema = @"
-[{"label":"Select mailbox","fields":[{"key":"textInput","templateOptions":{"label":"Search","required":true},"type":"input","summaryVisibility":"Hide element","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"gridMailboxList","templateOptions":{"label":"Mailbox List","required":true,"grid":{"columns":[{"headerName":"Identity","field":"Identity"},{"headerName":"Display Name","field":"DisplayName"},{"headerName":"Distinguished Name","field":"DistinguishedName"},{"headerName":"User Principal Name","field":"UserPrincipalName"},{"headerName":"Exchange Guid","field":"ExchangeGuid"},{"headerName":"Sam Account Name","field":"SamAccountName"}],"height":300,"rowSelection":"single"},"dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_0","input":{"propertyInputs":[{"propertyName":"SearchMailbox","otherFieldValue":{"otherFieldKey":"textInput"}}]}},"useFilter":true,"useDefault":false},"type":"grid","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":true}]},{"label":"Edit attributes","fields":[{"key":"gridSelectedMailbox","templateOptions":{"label":"Selected Mailbox ","required":false,"grid":{"columns":[{"headerName":"Sam Account Name","field":"SamAccountName"},{"headerName":"Custom Attribute12","field":"CustomAttribute12"},{"headerName":"Exchange Guid","field":"ExchangeGuid"},{"headerName":"Custom Attribute8","field":"CustomAttribute8"},{"headerName":"User Principal Name","field":"UserPrincipalName"},{"headerName":"Custom Attribute11","field":"CustomAttribute11"},{"headerName":"Custom Attribute15","field":"CustomAttribute15"},{"headerName":"Custom Attribute1","field":"CustomAttribute1"},{"headerName":"Custom Attribute3","field":"CustomAttribute3"},{"headerName":"Custom Attribute9","field":"CustomAttribute9"},{"headerName":"Custom Attribute2","field":"CustomAttribute2"},{"headerName":"Custom Attribute13","field":"CustomAttribute13"},{"headerName":"Custom Attribute4","field":"CustomAttribute4"},{"headerName":"Distinguished Name","field":"DistinguishedName"},{"headerName":"Custom Attribute14","field":"CustomAttribute14"},{"headerName":"Custom Attribute10","field":"CustomAttribute10"},{"headerName":"Custom Attribute5","field":"CustomAttribute5"},{"headerName":"Display Name","field":"DisplayName"},{"headerName":"Custom Attribute6","field":"CustomAttribute6"},{"headerName":"Custom Attribute7","field":"CustomAttribute7"},{"headerName":"Identity","field":"Identity"},{"headerName":"Isdefault Selected","field":"IsdefaultSelected"}],"height":150,"rowSelection":"single"},"dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_1","input":{"propertyInputs":[{"propertyName":"SelectedMailbox","otherFieldValue":{"otherFieldKey":"gridMailboxList"}}]}},"useDefault":true,"defaultSelectorProperty":"IsdefaultSelected"},"type":"grid","summaryVisibility":"Hide element","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":true},{"key":"textDisplayName","templateOptions":{"label":"Display name","useDependOn":true,"dependOn":"gridSelectedMailbox","dependOnProperty":"DisplayName","placeholder":"\u003cretrieving current value\u003e"},"type":"input","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"textCA1","templateOptions":{"label":"CustomAttribute1","useDependOn":true,"dependOn":"gridSelectedMailbox","dependOnProperty":"CustomAttribute1","placeholder":"\u003cretrieving current value\u003e"},"type":"input","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"textCA2","templateOptions":{"label":"CustomAttribute2","useDependOn":true,"dependOn":"gridSelectedMailbox","dependOnProperty":"CustomAttribute2","placeholder":"\u003cretrieving current value\u003e"},"type":"input","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"textCA3","templateOptions":{"label":"CustomAttribute3","useDependOn":true,"dependOn":"gridSelectedMailbox","dependOnProperty":"CustomAttribute3","placeholder":"\u003cretrieving current value\u003e"},"type":"input","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"textCA4","templateOptions":{"label":"CustomAttribute4","useDependOn":true,"dependOn":"gridSelectedMailbox","dependOnProperty":"CustomAttribute4","placeholder":"\u003cretrieving current value\u003e"},"type":"input","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"textCA5","templateOptions":{"label":"CustomAttribute5","useDependOn":true,"dependOn":"gridSelectedMailbox","dependOnProperty":"CustomAttribute5","placeholder":"\u003cretrieving current value\u003e"},"type":"input","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"textCA6","templateOptions":{"label":"CustomAttribute6","useDependOn":true,"dependOn":"gridSelectedMailbox","dependOnProperty":"CustomAttribute6","placeholder":"\u003cretrieving current value\u003e"},"type":"input","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"textCA7","templateOptions":{"label":"CustomAttribute7","useDependOn":true,"dependOn":"gridSelectedMailbox","dependOnProperty":"CustomAttribute7","placeholder":"\u003cretrieving current value\u003e"},"type":"input","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false}]}]
+[{"label":"Select mailbox","fields":[{"key":"textInput","templateOptions":{"label":"Search","required":true},"type":"input","summaryVisibility":"Hide element","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"gridMailboxList","templateOptions":{"label":"Mailbox List","required":true,"grid":{"columns":[{"headerName":"Identity","field":"Identity"},{"headerName":"Display Name","field":"DisplayName"},{"headerName":"Distinguished Name","field":"DistinguishedName"},{"headerName":"User Principal Name","field":"UserPrincipalName"},{"headerName":"Exchange Guid","field":"ExchangeGuid"},{"headerName":"Sam Account Name","field":"SamAccountName"}],"height":300,"rowSelection":"single"},"dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_0","input":{"propertyInputs":[{"propertyName":"SearchMailbox","otherFieldValue":{"otherFieldKey":"textInput"}}]}},"useFilter":true,"useDefault":false},"type":"grid","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":true}]},{"label":"Edit attributes","fields":[{"key":"gridSelectedMailbox","templateOptions":{"label":"Selected Mailbox ","required":false,"grid":{"columns":[{"headerName":"Display Name","field":"DisplayName"},{"headerName":"Sam Account Name","field":"SamAccountName"},{"headerName":"User Principal Name","field":"UserPrincipalName"},{"headerName":"Distinguished Name","field":"DistinguishedName"},{"headerName":"Custom Attribute1","field":"CustomAttribute1"},{"headerName":"Custom Attribute2","field":"CustomAttribute2"},{"headerName":"Custom Attribute3","field":"CustomAttribute3"},{"headerName":"Custom Attribute4","field":"CustomAttribute4"},{"headerName":"Custom Attribute5","field":"CustomAttribute5"},{"headerName":"Custom Attribute6","field":"CustomAttribute6"},{"headerName":"Custom Attribute7","field":"CustomAttribute7"},{"headerName":"Custom Attribute8","field":"CustomAttribute8"},{"headerName":"Custom Attribute9","field":"CustomAttribute9"},{"headerName":"Custom Attribute10","field":"CustomAttribute10"},{"headerName":"Custom Attribute11","field":"CustomAttribute11"},{"headerName":"Custom Attribute12","field":"CustomAttribute12"},{"headerName":"Custom Attribute13","field":"CustomAttribute13"},{"headerName":"Custom Attribute14","field":"CustomAttribute14"},{"headerName":"Custom Attribute15","field":"CustomAttribute15"},{"headerName":"Identity","field":"Identity"},{"headerName":"Exchange Guid","field":"ExchangeGuid"},{"headerName":"Isdefault Selected","field":"IsdefaultSelected"}],"height":150,"rowSelection":"single"},"dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_1","input":{"propertyInputs":[{"propertyName":"SelectedMailbox","otherFieldValue":{"otherFieldKey":"gridMailboxList"}}]}},"useDefault":true,"defaultSelectorProperty":"IsdefaultSelected"},"type":"grid","summaryVisibility":"Hide element","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":true},{"key":"textDisplayName","templateOptions":{"label":"Display name","useDependOn":true,"dependOn":"gridSelectedMailbox","dependOnProperty":"DisplayName","placeholder":"\u003cretrieving current value\u003e"},"type":"input","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"textCA1","templateOptions":{"label":"CustomAttribute1","useDependOn":true,"dependOn":"gridSelectedMailbox","dependOnProperty":"CustomAttribute1","placeholder":"\u003cretrieving current value\u003e"},"type":"input","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"textCA2","templateOptions":{"label":"CustomAttribute2","useDependOn":true,"dependOn":"gridSelectedMailbox","dependOnProperty":"CustomAttribute2","placeholder":"\u003cretrieving current value\u003e"},"type":"input","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"textCA3","templateOptions":{"label":"CustomAttribute3","useDependOn":true,"dependOn":"gridSelectedMailbox","dependOnProperty":"CustomAttribute3","placeholder":"\u003cretrieving current value\u003e"},"type":"input","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"textCA4","templateOptions":{"label":"CustomAttribute4","useDependOn":true,"dependOn":"gridSelectedMailbox","dependOnProperty":"CustomAttribute4","placeholder":"\u003cretrieving current value\u003e"},"type":"input","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"textCA5","templateOptions":{"label":"CustomAttribute5","useDependOn":true,"dependOn":"gridSelectedMailbox","dependOnProperty":"CustomAttribute5","placeholder":"\u003cretrieving current value\u003e"},"type":"input","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"textCA6","templateOptions":{"label":"CustomAttribute6","useDependOn":true,"dependOn":"gridSelectedMailbox","dependOnProperty":"CustomAttribute6","placeholder":"\u003cretrieving current value\u003e"},"type":"input","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"textCA7","templateOptions":{"label":"CustomAttribute7","useDependOn":true,"dependOn":"gridSelectedMailbox","dependOnProperty":"CustomAttribute7","placeholder":"\u003cretrieving current value\u003e"},"type":"input","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false}]}]
 "@ 
 
 $dynamicFormGuid = [PSCustomObject]@{} 
 $dynamicFormName = @'
-Exchange-On-Premises-Update-Mailbox-Attributes
+Exchange on-premise - Update mailbox attributes
 '@ 
 Invoke-HelloIDDynamicForm -FormName $dynamicFormName -FormSchema $tmpSchema  -returnObject ([Ref]$dynamicFormGuid) 
 <# END: Dynamic Form #>
 
 <# Begin: Delegated Form Access Groups and Categories #>
 $delegatedFormAccessGroupGuids = @()
-foreach($group in $delegatedFormAccessGroupNames) {
-    try {
-        $uri = ($script:PortalBaseUrl +"api/v1/groups/$group")
-        $response = Invoke-RestMethod -Method Get -Uri $uri -Headers $script:headers -ContentType "application/json" -Verbose:$false
-        $delegatedFormAccessGroupGuid = $response.groupGuid
-        $delegatedFormAccessGroupGuids += $delegatedFormAccessGroupGuid
-        
-        Write-Information "HelloID (access)group '$group' successfully found$(if ($script:debugLogging -eq $true) { ": " + $delegatedFormAccessGroupGuid })"
-    } catch {
-        Write-Error "HelloID (access)group '$group', message: $_"
+if(-not[String]::IsNullOrEmpty($delegatedFormAccessGroupNames)){
+    foreach($group in $delegatedFormAccessGroupNames) {
+        try {
+            $uri = ($script:PortalBaseUrl +"api/v1/groups/$group")
+            $response = Invoke-RestMethod -Method Get -Uri $uri -Headers $script:headers -ContentType "application/json" -Verbose:$false
+            $delegatedFormAccessGroupGuid = $response.groupGuid
+            $delegatedFormAccessGroupGuids += $delegatedFormAccessGroupGuid
+            
+            Write-Information "HelloID (access)group '$group' successfully found$(if ($script:debugLogging -eq $true) { ": " + $delegatedFormAccessGroupGuid })"
+        } catch {
+            Write-Error "HelloID (access)group '$group', message: $_"
+        }
+    }
+    if($null -ne $delegatedFormAccessGroupGuids){
+        $delegatedFormAccessGroupGuids = ($delegatedFormAccessGroupGuids | Select-Object -Unique | ConvertTo-Json -Depth 100 -Compress)
     }
 }
-$delegatedFormAccessGroupGuids = ($delegatedFormAccessGroupGuids | Select-Object -Unique | ConvertTo-Json -Compress)
 
 $delegatedFormCategoryGuids = @()
 foreach($category in $delegatedFormCategories) {
@@ -576,7 +578,7 @@ foreach($category in $delegatedFormCategories) {
         $body = @{
             name = @{"en" = $category};
         }
-        $body = ConvertTo-Json -InputObject $body
+        $body = ConvertTo-Json -InputObject $body -Depth 100
 
         $uri = ($script:PortalBaseUrl +"api/v1/delegatedformcategories")
         $response = Invoke-RestMethod -Method Post -Uri $uri -Headers $script:headers -ContentType "application/json" -Verbose:$false -Body $body
@@ -586,113 +588,18 @@ foreach($category in $delegatedFormCategories) {
         Write-Information "HelloID Delegated Form category '$category' successfully created$(if ($script:debugLogging -eq $true) { ": " + $tmpGuid })"
     }
 }
-$delegatedFormCategoryGuids = (ConvertTo-Json -InputObject $delegatedFormCategoryGuids -Compress)
+$delegatedFormCategoryGuids = (ConvertTo-Json -InputObject $delegatedFormCategoryGuids -Depth 100 -Compress)
 <# End: Delegated Form Access Groups and Categories #>
 
 <# Begin: Delegated Form #>
 $delegatedFormRef = [PSCustomObject]@{guid = $null; created = $null} 
 $delegatedFormName = @'
-Exchange-On-Premises-Update-Mailbox-Attributes
+Exchange on-premise - Update mailbox attributes
 '@
-Invoke-HelloIDDelegatedForm -DelegatedFormName $delegatedFormName -DynamicFormGuid $dynamicFormGuid -AccessGroups $delegatedFormAccessGroupGuids -Categories $delegatedFormCategoryGuids -UseFaIcon "True" -FaIcon "fa fa-file-text-o" -returnObject ([Ref]$delegatedFormRef) 
-<# End: Delegated Form #>
-
-<# Begin: Delegated Form Task #>
-if($delegatedFormRef.created -eq $true) { 
-	$tmpScript = @'
-# used global defined variables in helloid
-# $ExchangeConnectionUri
-# $ExchangeAdminUsername
-# $ExchangeAdminPassword
-# $ExchangeAuthentication
-
-## connect to exchange and get list of mailboxes
-
-try {
-    $adminSecurePassword = ConvertTo-SecureString -String $ExchangeAdminPassword -AsPlainText -Force
-    $adminCredential = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $ExchangeAdminUsername, $adminSecurePassword
-
-    $sessionOptionParams = @{
-        SkipCACheck         = $false
-        SkipCNCheck         = $false
-        SkipRevocationCheck = $false
-    }
-
-    $sessionOption = New-PSSessionOption  @SessionOptionParams 
-
-    $sessionParams = @{
-        AllowRedirection  = $true
-        Authentication    = $ExchangeAuthentication 
-        ConfigurationName = 'Microsoft.Exchange' 
-        ConnectionUri     = $ExchangeConnectionUri 
-        Credential        = $adminCredential        
-        SessionOption     = $sessionOption       
-    }
-
-    $exchangeSession = New-PSSession @SessionParams
-    HID-Write-Status -Message "Successfully connected to Exchange '$ExchangeConnectionUri'" -Event Information
-
-    $SetMailboxParams = @{
-        identity = $MailboxIdentity  
-    } 
-    if ( -not ($null -eq $MailboxDisplayName)) {
-      
-        $SetMailboxParams.add("DisplayName", $MailboxDisplayName)     
-    }
-    if ( -not ($null -eq $CustomAttribute1)) {
-        $SetMailboxParams.add("CustomAttribute1", $CustomAttribute1)     
-    }
-    if ( -not ($null -eq $CustomAttribute2)) {
-        $SetMailboxParams.add("CustomAttribute2", $CustomAttribute2)     
-    }
-    if ( -not ($null -eq $CustomAttribute3)) {
-        $SetMailboxParams.add("CustomAttribute3", $CustomAttribute3)     
-    }
-    if ( -not ($null -eq $CustomAttribute4)) {
-        $SetMailboxParams.add("CustomAttribute4", $CustomAttribute4)     
-    }
-    if ( -not ($null -eq $CustomAttribute5)) {
-        $SetMailboxParams.add("CustomAttribute5", $CustomAttribute5)     
-    }
-    if ( -not ($null -eq $CustomAttribute6)) {
-        $SetMailboxParams.add("CustomAttribute6", $CustomAttribute6)     
-    }
-    if ( -not ($null -eq $CustomAttribute7)) {
-        $SetMailboxParams.add("CustomAttribute7", $CustomAttribute7)     
-    }    
-
-    $invokecommandParams = @{
-        Session      = $exchangeSession
-        Scriptblock  = [scriptblock] { Param ($Params)Set-Mailbox @Params }
-        ArgumentList = $SetMailboxParams
-    }  
-  
-    $null = Invoke-Command @invokeCommandParams
-     
-    HID-Write-Status -Message "Succesfully updated mailbox $MailboxIdentity" -Event Success
-    HID-Write-Summary -Message "Succesfully updated mailbox attributes for $MailboxIdentity" -Event Success   
-    
-    Remove-PSSession($exchangeSession)
-  
-}
-catch {
-    HID-Write-Status "Error updating mailbox $MailboxIdentity using the URI '$exchangeConnectionUri', Message: '$($_.Exception.Message)'" -Event Error
-    HID-Write-Summary -Message "Failed to updated mailbox attributes for  $MailboxIdentity"  -Event Failed
-}
-
-
-'@; 
-
-	$tmpVariables = @'
-[{"name":"CustomAttribute1","value":"{{form.textCA1}}","secret":false,"typeConstraint":"string"},{"name":"CustomAttribute2","value":"{{form.textCA2}}","secret":false,"typeConstraint":"string"},{"name":"CustomAttribute3","value":"{{form.textCA3}}","secret":false,"typeConstraint":"string"},{"name":"CustomAttribute4","value":"{{form.textCA4}}","secret":false,"typeConstraint":"string"},{"name":"CustomAttribute5","value":"{{form.textCA5}}","secret":false,"typeConstraint":"string"},{"name":"CustomAttribute6","value":"{{form.textCA6}}","secret":false,"typeConstraint":"string"},{"name":"CustomAttribute7","value":"{{form.textCA7}}","secret":false,"typeConstraint":"string"},{"name":"MailboxIdentity","value":"{{form.gridSelectedMailbox.Identity}}","secret":false,"typeConstraint":"string"}]
+$tmpTask = @'
+{"name":"Exchange on-premise - Update mailbox attributes","script":"$VerbosePreference = \"SilentlyContinue\"\r\n$InformationPreference = \"Continue\"\r\n$WarningPreference = \"Continue\"\r\n\r\n# variables configured in form\r\n$MailboxIdentity = $form.gridSelectedMailbox.Identity\r\n$MailboxDisplayName = $form.gridSelectedMailbox.DisplayName\r\n$ExchangeGuid = $form.gridSelectedMailbox.ExchangeGuid\r\n$CustomAttribute1 = $form.textCA1\r\n$CustomAttribute2 = $form.textCA2\r\n$CustomAttribute3 = $form.textCA3\r\n$CustomAttribute4 = $form.textCA4\r\n$CustomAttribute5 = $form.textCA5\r\n$CustomAttribute6 = $form.textCA6\r\n$CustomAttribute7 = $form.textCA7\r\n\r\n# Connect to Exchange\r\ntry {\r\n    $adminSecurePassword = ConvertTo-SecureString -String \"$ExchangeAdminPassword\" -AsPlainText -Force\r\n    $adminCredential = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $ExchangeAdminUsername, $adminSecurePassword\r\n    $sessionOption = New-PSSessionOption -SkipCACheck -SkipCNCheck -SkipRevocationCheck\r\n    $exchangeSession = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri $exchangeConnectionUri -Credential $adminCredential -SessionOption $sessionOption -ErrorAction Stop \r\n    #-AllowRedirection\r\n    $session = Import-PSSession $exchangeSession -DisableNameChecking -AllowClobber\r\n    Write-Information \"Successfully connected to Exchange using the URI [$exchangeConnectionUri]\" \r\n    \r\n    $Log = @{\r\n        Action            = \"UpdateAccount\" # optional. ENUM (undefined = default) \r\n        System            = \"Exchange On-Premise\" # optional (free format text) \r\n        Message           = \"Successfully connected to Exchange using the URI [$exchangeConnectionUri]\" # required (free format text) \r\n        IsError           = $false # optional. Elastic reporting purposes only. (default = $false. $true = Executed action returned an error) \r\n        TargetDisplayName = $exchangeConnectionUri # optional (free format text) \r\n        TargetIdentifier  = $([string]$session.GUID) # optional (free format text) \r\n    }\r\n    #send result back  \r\n    Write-Information -Tags \"Audit\" -MessageData $log\r\n}\r\ncatch {\r\n    Write-Error \"Error connecting to Exchange using the URI [$exchangeConnectionUri]. Error: $($_.Exception.Message)\"\r\n    $Log = @{\r\n        Action            = \"UpdateAccount\" # optional. ENUM (undefined = default) \r\n        System            = \"Exchange On-Premise\" # optional (free format text) \r\n        Message           = \"Failed to connect to Exchange using the URI [$exchangeConnectionUri].\" # required (free format text) \r\n        IsError           = $true # optional. Elastic reporting purposes only. (default = $false. $true = Executed action returned an error) \r\n        TargetDisplayName = $exchangeConnectionUri # optional (free format text) \r\n        TargetIdentifier  = $([string]$session.GUID) # optional (free format text) \r\n    }\r\n    #send result back  \r\n    Write-Information -Tags \"Audit\" -MessageData $log\r\n}\r\n\r\ntry {\r\n    $SetMailboxParams = @{\r\n        identity = $MailboxIdentity  \r\n    } \r\n    if ( -not ($null -eq $MailboxDisplayName)) {      \r\n        $SetMailboxParams.add(\"DisplayName\", $MailboxDisplayName)     \r\n    }\r\n    if ( -not ($null -eq $CustomAttribute1)) {\r\n        $SetMailboxParams.add(\"CustomAttribute1\", $CustomAttribute1)     \r\n    }\r\n    if ( -not ($null -eq $CustomAttribute2)) {\r\n        $SetMailboxParams.add(\"CustomAttribute2\", $CustomAttribute2)     \r\n    }\r\n    if ( -not ($null -eq $CustomAttribute3)) {\r\n        $SetMailboxParams.add(\"CustomAttribute3\", $CustomAttribute3)     \r\n    }\r\n    if ( -not ($null -eq $CustomAttribute4)) {\r\n        $SetMailboxParams.add(\"CustomAttribute4\", $CustomAttribute4)     \r\n    }\r\n    if ( -not ($null -eq $CustomAttribute5)) {\r\n        $SetMailboxParams.add(\"CustomAttribute5\", $CustomAttribute5)     \r\n    }\r\n    if ( -not ($null -eq $CustomAttribute6)) {\r\n        $SetMailboxParams.add(\"CustomAttribute6\", $CustomAttribute6)     \r\n    }\r\n    if ( -not ($null -eq $CustomAttribute7)) {\r\n        $SetMailboxParams.add(\"CustomAttribute7\", $CustomAttribute7)     \r\n    }    \r\n\r\n    $invokecommandParams = @{\r\n        Session      = $exchangeSession\r\n        Scriptblock  = [scriptblock] { Param ($Params)Set-Mailbox @Params }\r\n        ArgumentList = $SetMailboxParams\r\n    }  \r\n  \r\n    $null = Invoke-Command @invokeCommandParams -ErrorAction Stop\r\n     \r\n    Write-Information \"Succesfully updated mailbox [$MailboxIdentity]\"\r\n    $Log = @{\r\n        Action            = \"UpdateAccount\" # optional. ENUM (undefined = default) \r\n        System            = \"Exchange On-Premise\" # optional (free format text) \r\n        Message           = \"Succesfully updated mailbox [$MailboxIdentity].\" # required (free format text) \r\n        IsError           = $false # optional. Elastic reporting purposes only. (default = $false. $true = Executed action returned an error) \r\n        TargetDisplayName = $MailboxDisplayName # optional (free format text) \r\n        TargetIdentifier  = [string]$ExchangeGuid # optional (free format text) \r\n    }\r\n    #send result back  \r\n    Write-Information -Tags \"Audit\" -MessageData $log\r\n}\r\ncatch {\r\n    Write-Error \"Error updating mailbox [$MailboxIdentity] using the URI [$exchangeConnectionUri]. Error: \u0027$($_.Exception.Message)\u0027\"\r\n    $Log = @{\r\n        Action            = \"UpdateAccount\" # optional. ENUM (undefined = default) \r\n        System            = \"Exchange On-Premise\" # optional (free format text) \r\n        Message           = \"Failed to updated mailbox attributes for [$MailboxIdentity].\" # required (free format text) \r\n        IsError           = $true # optional. Elastic reporting purposes only. (default = $false. $true = Executed action returned an error) \r\n        TargetDisplayName = $MailboxDisplayName # optional (free format text) \r\n        TargetIdentifier  = [string]$ExchangeGuid # optional (free format text) \r\n    }\r\n    #send result back  \r\n    Write-Information -Tags \"Audit\" -MessageData $log    \r\n}\r\n\r\n# Disconnect from Exchange\r\ntry {\r\n    Remove-PsSession -Session $exchangeSession -Confirm:$false -ErrorAction Stop\r\n    Write-Information \"Successfully disconnected from Exchange using the URI [$exchangeConnectionUri]\"     \r\n    $Log = @{\r\n        Action            = \"UpdateAccount\" # optional. ENUM (undefined = default) \r\n        System            = \"Exchange On-Premise\" # optional (free format text) \r\n        Message           = \"Successfully disconnected from Exchange using the URI [$exchangeConnectionUri]\" # required (free format text) \r\n        IsError           = $false # optional. Elastic reporting purposes only. (default = $false. $true = Executed action returned an error) \r\n        TargetDisplayName = $exchangeConnectionUri # optional (free format text) \r\n        TargetIdentifier  = $([string]$session.GUID) # optional (free format text) \r\n    }\r\n    #send result back  \r\n    Write-Information -Tags \"Audit\" -MessageData $log\r\n}\r\ncatch {\r\n    Write-Error \"Error disconnecting from Exchange.  Error: $($_.Exception.Message)\"\r\n    $Log = @{\r\n        Action            = \"UpdateAccount\" # optional. ENUM (undefined = default) \r\n        System            = \"Exchange On-Premise\" # optional (free format text) \r\n        Message           = \"Failed to disconnect from Exchange using the URI [$exchangeConnectionUri].\" # required (free format text) \r\n        IsError           = $true # optional. Elastic reporting purposes only. (default = $false. $true = Executed action returned an error) \r\n        TargetDisplayName = $exchangeConnectionUri # optional (free format text) \r\n        TargetIdentifier  = $([string]$session.GUID) # optional (free format text) \r\n    }\r\n    #send result back  \r\n    Write-Information -Tags \"Audit\" -MessageData $log\r\n}\r\n\u003c#----- Exchange On-Premises: End -----#\u003e\r\n","runInCloud":false}
 '@ 
 
-	$delegatedFormTaskGuid = [PSCustomObject]@{} 
-$delegatedFormTaskName = @'
-Exchange-On-Premises-Update-Mailbox-Attributes
-'@
-	Invoke-HelloIDAutomationTask -TaskName $delegatedFormTaskName -UseTemplate "False" -AutomationContainer "8" -Variables $tmpVariables -PowershellScript $tmpScript -ObjectGuid $delegatedFormRef.guid -ForceCreateTask $true -returnObject ([Ref]$delegatedFormTaskGuid) 
-} else {
-	Write-Warning "Delegated form '$delegatedFormName' already exists. Nothing to do with the Delegated Form task..." 
-}
-<# End: Delegated Form Task #>
+Invoke-HelloIDDelegatedForm -DelegatedFormName $delegatedFormName -DynamicFormGuid $dynamicFormGuid -AccessGroups $delegatedFormAccessGroupGuids -Categories $delegatedFormCategoryGuids -UseFaIcon "True" -FaIcon "fa fa-file-text-o" -task $tmpTask -returnObject ([Ref]$delegatedFormRef) 
+<# End: Delegated Form #>
+
